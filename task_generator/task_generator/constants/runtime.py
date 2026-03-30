@@ -61,7 +61,7 @@ def Configuration(server: ROSParamServer):
             )
             DESIRED_EPISODES = server.ROSParam[float](
                 'episodes',
-                -1,
+                -1.0,
                 parse=_positive_or_inf,
             )
 
@@ -89,8 +89,8 @@ def Configuration(server: ROSParamServer):
             )
 
             TIMEOUT = server.ROSParam[float](
-                'timeout',
-                -1,
+                'robot.timeout',
+                -1.0,
                 parse=_positive_or_inf,
             )
 

@@ -1,0 +1,13 @@
+bounding_box:
+- - -0.8
+  - 0.8
+- - -0.5
+  - 0.5
+- - 0.0
+  - 0.75
+name: table
+desc: Table
+path: Object/table
+tags:
+- office
+- local

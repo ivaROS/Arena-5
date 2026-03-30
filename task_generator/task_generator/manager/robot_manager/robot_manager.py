@@ -144,6 +144,9 @@ class RobotManager(NodeInterface):
         self._robot = (await self._environment_manager.spawn_robot((self._robot,)))[0]
 
         _gen_goal_topic = self.namespace("goal_pose")
+        _odom_topic = self.namespace("odom")
+        _status_topic = self.namespace('navigate_to_pose', '_action', 'status')
+        self._logger.warn(f"Robot {self.name} topics: goal={_gen_goal_topic}, odom={_odom_topic}, status={_status_topic}")
 
         self._goal_pub = self.node.create_publisher(
             geometry_msgs.msg.PoseStamped,
@@ -153,14 +156,14 @@ class RobotManager(NodeInterface):
 
         self.node.create_subscription(
             nav_msgs.Odometry,
-            self.namespace("odom"),
+            _odom_topic,
             self._robot_pos_callback,
             10
         )
 
         self.node.create_subscription(
             action_msgs.msg.GoalStatusArray,
-            self.namespace('navigate_to_pose', '_action', 'status'),
+            _status_topic,
             self._goal_status_callback,
             1
         )
@@ -230,7 +233,20 @@ class RobotManager(NodeInterface):
         Returns:
             bool: True if the goal is reached, False otherwise.
         """
-        return self._is_goal_reached
+        if self._is_goal_reached:
+            self._logger.info(f"Robot {self.name} is_done: True (goal reached)")
+            return True
+        
+        # Fallback distance check
+        if self._pose is not None and self._goal_pos is not None:
+            dx = self._pose.position.x - self._goal_pos.position.x
+            dy = self._pose.position.y - self._goal_pos.position.y
+            dist = (dx**2 + dy**2)**0.5
+            if dist < 0.8: # Very relaxed fallback
+                self._logger.info(f"Robot {self.name} is_done: True (fallback dist={dist:.2f})")
+                return True
+
+        return False
 
     async def move_robot_to_pos(self, pose: Pose):
         """Move the robot to the specified pose.
@@ -301,6 +317,7 @@ class RobotManager(NodeInterface):
         Returns:
             tuple[Pose, Pose]: The new starting and goal positions of the robot.
         """
+        self._is_goal_reached = False
         if start_pos is not None:
             self._start_pos = self._environment_manager.realize(start_pos)
             await self.move_robot_to_pos(start_pos)
@@ -310,6 +327,14 @@ class RobotManager(NodeInterface):
                     self.namespace.robot_ns.ParamNamespace()("start"),
                     [self.start_pos.position.x, self.start_pos.position.y, self.start_pos.orientation.to_yaw()]
                 )
+                recorder_node = f"data_recorder{str(self.namespace).replace('/', '_')}"
+                try:
+                    self.node.rosparam[list[float]].set(
+                        Namespace(recorder_node)("start"),
+                        [self.start_pos.position.x, self.start_pos.position.y, self.start_pos.orientation.to_yaw()]
+                    )
+                except:
+                    pass
         if goal_pos is not None:
             self._goal_pos = self._environment_manager.realize(goal_pos)
 
@@ -322,6 +347,14 @@ class RobotManager(NodeInterface):
                     self.namespace.robot_ns.ParamNamespace()("goal"),
                     [self.goal_pos.position.x, self.goal_pos.position.y, self.goal_pos.orientation.to_yaw()]
                 )
+                recorder_node = f"data_recorder{str(self.namespace).replace('/', '_')}"
+                try:
+                    self.node.rosparam[list[float]].set(
+                        Namespace(recorder_node)("goal"),
+                        [self.goal_pos.position.x, self.goal_pos.position.y, self.goal_pos.orientation.to_yaw()]
+                    )
+                except:
+                    pass
         return self._pose, self._goal_pos
 
     async def _publish_goal_loop(self):
@@ -329,7 +362,7 @@ class RobotManager(NodeInterface):
         """
         # only way to circumvent amcl absolutely trolling us is to create this loop
 
-        with self.node.sim_time_rate(1.0, 60) as (done, rate):
+        with self.node.sim_time_rate(1.0, 5) as (done, rate):
             while not done.is_set():
                 await rate.get()
 
@@ -337,7 +370,7 @@ class RobotManager(NodeInterface):
                     break
 
                 goal = self._goal_pos
-                self._logger.info(f"Publishing goal: x={goal.position.x}, y={goal.position.y}, orientation={goal.orientation.to_yaw()}")
+                self._logger.debug(f"Publishing goal: x={goal.position.x}, y={goal.position.y}, orientation={goal.orientation.to_yaw()}")
 
                 self._goal_pos = goal
 
@@ -379,6 +412,8 @@ class RobotManager(NodeInterface):
                 'agent_name': self._robot.agent,
                 'use_sim_time': 'True',
                 'amcl': 'true' if self.node.conf.Arena.SIM.value in (Constants.SimSimulator.GAZEBO,) else 'false',
+                'map_file': self.node.conf.Arena.WORLD.value,
+                'scenario_file': self.node.rosparam[str].get(Constants.TaskMode.TM_Obstacles.prefix('file'), ''),
             }
 
             if self._robot.record_data_dir:
@@ -420,6 +455,15 @@ class RobotManager(NodeInterface):
             ),
             Orientation.from_msg(quat)
         )
+        # Debug: Log distance to goal every 100 updates
+        if not hasattr(self, "_pos_count"): self._pos_count = 0
+        self._pos_count += 1
+        if self._pos_count % 100 == 0:
+            if self._goal_pos is not None:
+                dx = self._pose.position.x - self._goal_pos.position.x
+                dy = self._pose.position.y - self._goal_pos.position.y
+                dist = (dx**2 + dy**2)**0.5
+                self._logger.info(f"Robot {self.name} distance to goal: {dist:.2f}")
 
     def _goal_status_callback(self, data: action_msgs.msg.GoalStatusArray):
         """Callback for goal status updates.
@@ -428,6 +472,8 @@ class RobotManager(NodeInterface):
             data(action_msgs.msg.GoalStatusArray): The goal status data.
         """
         last_goal = next(reversed(list(data.status_list)), None)
+        if last_goal is not None:
+            self._logger.info(f"Robot {self.name} goal status: {last_goal.status}")
         self._is_goal_reached = (last_goal is not None) and last_goal.status == action_msgs.msg.GoalStatus.STATUS_SUCCEEDED
 
     async def update(self):

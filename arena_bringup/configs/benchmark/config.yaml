@@ -1,7 +1,7 @@
 contest:
-  config: basic.yaml
+  config: graceful_dwb.yaml
 general:
-  simulator: gazebo
+  simulator: isaac
 suite:
-  config: meta_suite.yaml
-  scale_episodes: 1
+  config: simple_success.yaml
+  scale_episodes: 2

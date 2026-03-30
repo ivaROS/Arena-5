@@ -12,6 +12,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from rcl_interfaces.srv import DescribeParameters, SetParameters
 from rclpy.parameter import Parameter
+import arena_evaluation_msgs.srv as arena_evaluation_srvs
 
 from task_generator.constants import Constants
 from task_generator.tasks.modules import TM_Module
@@ -264,14 +265,31 @@ class Mod_Benchmark(TM_Module):
         finally:
             self.node.destroy_client(describe_client)
 
-    def _set_node_parameters(self, suite_config):
+    def _set_node_parameters(self, suite_config: Suite.Stage, contestant_config: Contest.Contestant):
         """
         Apply map/world, task modes, and scenario file for the current stage.
+        Also apply contestant-specific planners and agent.
         Only touches parameters that actually need to change.
         Returns True on success, False on error.
         """
         logger = self._logger
         updated = False
+
+        # Contestant configuration (planners)
+        if contestant_config.local_planner and self.node.conf.Robot.CONTROLLER.value != contestant_config.local_planner:
+            self.node.conf.Robot.CONTROLLER.value = contestant_config.local_planner
+            logger.info(f"[Benchmark] Local Planner  → {contestant_config.local_planner}")
+            updated = True
+
+        if contestant_config.inter_planner and self.node.conf.Robot.BEHAVIOR.value != contestant_config.inter_planner:
+            self.node.conf.Robot.BEHAVIOR.value = contestant_config.inter_planner
+            logger.info(f"[Benchmark] Inter Planner  → {contestant_config.inter_planner}")
+            updated = True
+
+        if contestant_config.agent_name and self.node.conf.Robot.AGENT.value != contestant_config.agent_name:
+            self.node.conf.Robot.AGENT.value = contestant_config.agent_name
+            logger.info(f"[Benchmark] Agent Name     → {contestant_config.agent_name}")
+            updated = True
 
         # Task-mode enums (robots / obstacles)
         new_tm_r = Constants.TaskMode.TM_Robots(suite_config.tm_robots).value
@@ -318,54 +336,8 @@ class Mod_Benchmark(TM_Module):
             logger.debug("[Benchmark] No parameter changes for this stage.")
         return True
 
-        clean_node_name = self._primary_node
-        logger.debug(f"Setting parameters for {clean_node_name}")
-
-        params_to_set = [
-            ('tm_robots', Parameter.Type.STRING, suite_config.tm_robots.value),
-            ('tm_obstacles', Parameter.Type.STRING, suite_config.tm_obstacles.value)
-        ]
-
-        # Check if parameters are declared
-        # valid_params = self._validate_parameters([name for name, _, _ in params_to_set])
-        # if not all(name in valid_params for name, _, _ in params_to_set):
-        #     logger.warning(f"Parameters {', '.join(name for name, _, _ in params_to_set if name not in valid_params)} not declared on {clean_node_name}. Please declare them in task_generator_node.py.")
-        #     return False
-
-        service_name = os.path.join(clean_node_name, "set_parameters")
-        logger.debug(f"Creating client for service: {service_name}")
-        set_client = self.node.create_client(SetParameters, service_name)
-        if not set_client.wait_for_service(timeout_sec=self.SERVICE_WAIT_TIMEOUT):
-            logger.warning(f"SetParameters service not available for {clean_node_name}")
-            return False
-
-        success = True
-        for name, param_type, value in params_to_set:
-            for attempt in range(self.PARAM_SET_RETRIES):
-                try:
-                    param = Parameter(name, param_type, value)
-                    request = SetParameters.Request()
-                    request.parameters = [param.to_parameter_msg()]
-                    future = set_client.call_async(request)
-                    rclpy.spin_until_future_complete(self.node, future, timeout_sec=self.PARAM_SET_TIMEOUT)
-                    if future.result() and all(r.successful for r in future.result().results):
-                        logger.info(f"Set parameter {name}={value} on {clean_node_name}")
-                        break
-                    else:
-                        logger.warning(f"Failed to set {name} on {clean_node_name}: {future.result().results[0].reason if future.result() else 'No result'}")
-                        time.sleep(self.PARAM_SET_BACKOFF)
-                except Exception as e:
-                    logger.warning(f"Error setting {name} on {clean_node_name} (attempt {attempt+1}/{self.PARAM_SET_RETRIES}): {e}")
-                    time.sleep(self.PARAM_SET_BACKOFF)
-            else:
-                logger.error(f"Failed to set {name} on {clean_node_name} after {self.PARAM_SET_RETRIES} attempts")
-                success = False
-
-        self.node.destroy_client(set_client)
-        return success
-
     def __init__(self, task, **kwargs):
-        super().__init__(task, **kwargs)
+        super().__init__(task=task, **kwargs)
 
         self.needs_reincarnation: bool = True
 
@@ -379,7 +351,7 @@ class Mod_Benchmark(TM_Module):
         self._contest = self._load_contest(self._config.contest.config)
         self._episode_index = -1
         self._contest_index = self._contest.min_index
-        self._suite_index = self._suite.min_index
+        self._suite_index = -1
         self._headless = 1
 
         os.makedirs(self.LOG_DIR, exist_ok=True)
@@ -388,30 +360,24 @@ class Mod_Benchmark(TM_Module):
             f.write(f"contest {self._contest.name}\n")
             f.write(f"suite {self._suite.name}\n")
 
-        self._log_contest()
-        self._log_suite()
-        # self._reincarnate()
-
-    def before_reset(self):
+    async def before_reset(self):
         self._logger.debug("Before task reset")
         if self.needs_reincarnation:
             self.needs_reincarnation = False
             self._episode_index = -1
             self.suite_index += 1
-            self._reincarnate()
+            await self._reincarnate()
+        else:
+            self._episode_index += 1
+            self._log_episode()
 
     def after_reset(self):
-        self._logger.debug(f"Episode: {self._episode_index + 1}")
-        self._episode_index += 1
         episode_limit = int(self._suite.config(self._suite_index).episodes * self._config.suite.scale_episodes)
-        if self._episode_index < episode_limit - 1:
-            # self._reset_task()
-            pass
-        else:
+        if self._episode_index >= episode_limit - 1:
             self.needs_reincarnation = True
 
-    def _reset_task(self):
-        self._TASK.reset()
+    async def _reset_task(self):
+        await self._TASK.reset()
 
     @property
     def _logger(self) -> logging.Logger:  # type: ignore
@@ -450,7 +416,6 @@ class Mod_Benchmark(TM_Module):
             self._logger.info("Benchmark completed")
         else:
             self._log_contest()
-            # self._reincarnate()
 
     @property
     def suite_index(self) -> Suite.Index:
@@ -464,7 +429,6 @@ class Mod_Benchmark(TM_Module):
             self.contest_index += 1
         else:
             self._log_suite()
-            # self._reincarnate()
 
     @property
     def _episode(self) -> int:
@@ -480,14 +444,56 @@ class Mod_Benchmark(TM_Module):
             self._episode_index = episode
             self._log_episode()
 
-    def _reincarnate(self):
+    async def _reincarnate(self):
         logger = self._logger
         logger.debug("Starting reincarnation process")
         suite_config = self._suite.config(self._suite_index)
-        logger.info(f"Transitioning to stage: {suite_config.name} (tm_robots={suite_config.tm_robots.value}, tm_obstacles={suite_config.tm_obstacles.value})")
+        contestant_config = self._contest.config(self._contest_index)
+        
+        logger.info(f"Transitioning to stage: {suite_config.name} with contestant: {contestant_config.name}")
+        logger.info(f"Config: local={contestant_config.local_planner}, inter={contestant_config.inter_planner}, agent={contestant_config.agent_name}")
+        
+        # Dynamically update the record directory for each contestant
+        if self.node.conf.Robot.RECORD_DATA_DIR.value:
+            base_dir = self.node.conf.Robot.RECORD_DATA_DIR.value
+            new_dir = os.path.join(base_dir, contestant_config.name)
+            
+            # 1. Update own parameter
+            self.node.set_parameters([
+                Parameter("record_data_dir", Parameter.Type.STRING, new_dir)
+            ])
+            
+            # 2. Tell recorders to move (one call per robot)
+            for robot in self._TASK.robots.values():
+                srv_name = f"{robot.namespace}/data_recorder/change_directory"
+
+                # Update recorder parameters so params.yaml is correct
+                recorder_node_name = f"{robot.namespace}/data_recorder"
+                try:
+                    self.node.set_parameters_atomically(
+                        recorder_node_name,
+                        [
+                            Parameter("local_planner", Parameter.Type.STRING, contestant_config.local_planner),
+                            Parameter("inter_planner", Parameter.Type.STRING, contestant_config.inter_planner),
+                            Parameter("agent_name", Parameter.Type.STRING, contestant_config.agent_name),
+                            Parameter("map_file", Parameter.Type.STRING, suite_config.map),
+                        ]
+                    )
+                except Exception as e:
+                    logger.warning(f"[Benchmark] Failed to update parameters for {recorder_node_name}: {e}")
+                
+                cli = self.node.create_client(arena_evaluation_srvs.ChangeDirectory, srv_name)
+                if cli.wait_for_service(timeout_sec=5.0):
+                    req = arena_evaluation_srvs.ChangeDirectory.Request()
+                    req.data = new_dir
+                    cli.call_async(req)
+                    logger.info(f"[Benchmark] Signaled recorder {srv_name} to move to: {new_dir}")
+                else:
+                    logger.warning(f"[Benchmark] Recorder service {srv_name} not found. Directory may not switch.")
+
         success = False
         selected_node = self._primary_node
-        if self._set_node_parameters(suite_config):
+        if self._set_node_parameters(suite_config, contestant_config):
             logger.info(f"Stage setup complete for {suite_config.name} on {selected_node}")
             success = True
         else:
@@ -495,5 +501,5 @@ class Mod_Benchmark(TM_Module):
 
         if not success:
             logger.error(f"Failed to set parameters for {suite_config.name} on any task_generator_node. Ensure tm_robots and tm_obstacles are declared in task_generator_node.py.")
-        self._reset_task()
+        
         self._episode = 0

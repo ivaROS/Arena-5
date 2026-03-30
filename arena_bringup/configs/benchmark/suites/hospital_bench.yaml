@@ -1,0 +1,19 @@
+stages:
+- config:
+    SCENARIO:
+      file: default
+  episodes: 5
+  map: hospital_1
+  name: hospital_default
+  robot: jackal
+  tm_obstacles: scenario
+  tm_robots: scenario
+- config:
+    SCENARIO:
+      file: empty
+  episodes: 5
+  map: map_walled
+  name: walled_empty
+  robot: jackal
+  tm_obstacles: scenario
+  tm_robots: scenario

@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import typing
 from collections.abc import Sequence
 
@@ -22,6 +23,12 @@ from .obstacles import TM_Obstacles
 from .robots import TM_Robots
 
 # import training.srv as training_srvs
+
+
+async def await_if_async(obj):
+    if inspect.isawaitable(obj):
+        return await obj
+    return obj
 
 
 class _TaskRegistry(Namespaced):
@@ -231,7 +238,7 @@ class Task(_TaskRegistry, NodeInterface, Props_):
                     self.set_tm_obstacles(new_tm_obstacles)
 
             for module in self.__modules:
-                module.before_reset()
+                await await_if_async(module.before_reset())
 
             await self.__tm_robots.reset(**kwargs)
             obstacles, dynamic_obstacles = await self.__tm_obstacles.reset(**kwargs)
@@ -245,7 +252,7 @@ class Task(_TaskRegistry, NodeInterface, Props_):
             await self.environment_manager.respawn(respawn)
 
             for module in self.__modules:
-                module.after_reset()
+                await await_if_async(module.after_reset())
 
             self.last_reset_time = self.clock.clock.sec
 

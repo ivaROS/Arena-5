@@ -8,6 +8,7 @@ import launch
 import launch.actions
 import launch.launch_description_sources
 import launch.substitutions
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
@@ -27,6 +28,9 @@ def generate_launch_description():
     global_planner = LaunchArgument("global_planner")
     local_planner = LaunchArgument("local_planner")
     inter_planner = LaunchArgument("inter_planner", default_value="navigate_to_pose")
+
+    map_file = LaunchArgument("map_file", default_value="")
+    scenario_file = LaunchArgument("scenario_file", default_value="")
 
     record_data_dir = LaunchArgument('record_data_dir', default_value='')
     amcl = LaunchArgument('amcl', default_value='false')
@@ -75,9 +79,17 @@ def generate_launch_description():
     data_recorder = launch_ros.actions.Node(
         package='arena_evaluation',
         executable='record',
-        name=PythonExpression(['"data_recorder" + "', namespace.substitution, '".replace("/","_")']),
+        name='data_recorder',
+        parameters=[{
+            'map_file': map_file.substitution,
+            'scenario_file': scenario_file.substitution,
+            'local_planner': local_planner.substitution,
+            'inter_planner': inter_planner.substitution,
+            'agent_name': LaunchConfiguration('agent_name'),
+            'model': robot.substitution,
+        }],
         arguments=[
-            ['--dir', ' ', record_data_dir.substitution],
+            '--dir', record_data_dir.substitution,
         ],
         condition=launch.conditions.IfCondition(PythonExpression(['bool("', record_data_dir.substitution, '")'])),
     )

@@ -1,0 +1,11 @@
+stages:
+- config:
+    SCENARIO:
+      file: simple_success
+  episodes: 1
+  map: map_empty
+  name: simple_success_test
+  robot: jackal
+  tm_obstacles: scenario
+  tm_robots: scenario
+

@@ -58,25 +58,34 @@ class MapServerHandler(NodeInterface):
         """Restart the map server if it is not active.
         """
 
-        wait_interval = 15.0
+        wait_interval = 5.0
+        map_server_ns = self.node.service_namespace('map_server')
 
-        while not await self.node.wait_for_lifecycle_state_async(
-            self.node.service_namespace('map_server'),
-            lifecycle_msgs.msg.State.PRIMARY_STATE_ACTIVE,
-            timeout=wait_interval,
-        ):
-            wait_interval = min(wait_interval * 2, 60.0)
+        while True:
+            try:
+                state = await self.node.get_lifecycle_state_async(map_server_ns, timeout=2.0)
+                if state.id == lifecycle_msgs.msg.State.PRIMARY_STATE_ACTIVE:
+                    self._logger.info('map server is active.')
+                    break
+                
+                if state.id == lifecycle_msgs.msg.State.PRIMARY_STATE_INACTIVE:
+                    self._logger.info('map server is inactive, activating...')
+                    await self.node.change_lifecycle_state_async(
+                        map_server_ns,
+                        lifecycle_msgs.msg.Transition.TRANSITION_ACTIVATE
+                    )
+                    continue
 
-            self._logger.warn('shutting down map server...')
+                self._logger.warn(f'map server in state {state.label} ({state.id}), destroying and relaunching...')
+                await self.node.change_lifecycle_state_async(
+                    map_server_ns,
+                    lifecycle_msgs.msg.Transition.TRANSITION_DESTROY
+                )
 
-            await self.node.change_lifecycle_state_async(
-                self.node.service_namespace('map_server'),
-                lifecycle_msgs.msg.Transition.TRANSITION_DESTROY
-            )
+            except Exception as e:
+                self._logger.warn(f'map server not found or error checking state: {e}. relaunching...')
 
-            self._logger.warn('map server shut down.')
             self._logger.warn('relaunching map server...')
-
             await self.node.do_launch(
                 launch.LaunchDescription([
                     launch.actions.IncludeLaunchDescription(
@@ -89,6 +98,10 @@ class MapServerHandler(NodeInterface):
                     )
                 ])
             )
+            
+            # Wait a bit for it to come up
+            await asyncio.sleep(wait_interval)
+            wait_interval = min(wait_interval * 2, 30.0)
 
         self._logger.info('map server launched.')
 

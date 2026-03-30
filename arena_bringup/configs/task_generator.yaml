@@ -18,16 +18,18 @@
           - shelf
         seed: -1
       scenario:
-        file: default
+        file: simple_success
       staged:
         curriculum: default.yaml
         index: 0
       environment:
         file: office.yaml
+    robot:
+      timeout: 120.0
     hunavsim:       
       parameters:
         max_vel: 0.3
         force_factor_desired: 1.0
         force_factor_obstacle: 1.0
         force_factor_social: 5.0
-        force_factor_robot: 0.0
+        force_factor_robot: 5.0

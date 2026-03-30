@@ -1,0 +1,35 @@
+{
+    "robots": [
+        {
+            "start": [2.0, 2.0, 0.0],
+            "goal": [10.0, 2.0, 0.0]
+        }
+    ],
+    "static": [],
+    "dynamic": [
+        {
+            "name": "Pedestrian1",
+            "id": 10,
+            "pos": [4.0, 6.0, 0.0],
+            "model": "actor1",
+            "behavior_tree": "BTRegularNav.xml",
+            "goal_radius": 0.3,
+            "cyclic_goals": true,
+            "max_vel": 1.2,
+            "desired_velocity": 1.2,
+            "behavior": {
+                "type": 1,
+                "vel": 1.2,
+                "goal_force_factor": 2.0,
+                "social_force_factor": 1.0,
+                "obstacle_force_factor": 1.0
+            },
+            "waypoints": [
+                [8.0, 6.0, 0.0],
+                [6.0, 9.0, 0.0],
+                [4.0, 6.0, 0.0]
+            ]
+        }
+    ],
+    "interactive": []
+}

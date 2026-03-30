@@ -58,6 +58,8 @@ class TaskGenerator(ArenaMixinNode, SafeCallbackNode):
 
         self._namespace = Namespace(namespace)
 
+        self.declare_parameter('initialized', False)
+
         Task.declare_parameters(self)
 
         self._auto_reset = self.rosparam[bool].get('auto_reset', True)
@@ -71,7 +73,7 @@ class TaskGenerator(ArenaMixinNode, SafeCallbackNode):
         # Publishers
         self._pub_task_reset = self.create_publisher(
             Int16,
-            self.service_namespace('task_reset'),
+            '/scenario_reset',
             1,
         )
 
@@ -190,9 +192,12 @@ class TaskGenerator(ArenaMixinNode, SafeCallbackNode):
         try:
             while True:
                 await asyncio.sleep(0.5)
+                is_done = False
                 async with self._reset_lock:
-                    if await self._task.is_done:
-                        await self.reset_task()
+                    is_done = await self._task.is_done
+                
+                if is_done:
+                    await self.reset_task()
         except asyncio.CancelledError:
             pass
         except Exception as e:
