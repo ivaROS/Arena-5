@@ -1,7 +1,7 @@
 ## Installation
 
 ```sh
-curl https://raw.githubusercontent.com/ivaROS/Arena/humble/install.sh > install.sh
+curl https://raw.githubusercontent.com/ivaROS/Arena-5/custom-humble/install.sh > install.sh
 bash install.sh
 
 cd ~/arena5_ws # replace with your actual workspace path
