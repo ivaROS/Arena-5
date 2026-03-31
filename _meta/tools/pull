@@ -17,6 +17,11 @@ python -m pip install git+https://github.com/voshch/vcstool.git || echo 'failed 
 
 #update repos
 if [ $_GIT -eq 1 ] ; then
+    # update submodule URLs to forks
+    git submodule set-url arena_evaluation https://github.com/ivaROS/arena-evaluation-5.git
+    git submodule set-url arena_robots https://github.com/ivaROS/arena-robots-5.git
+    git submodule set-url arena_isaac https://github.com/ivaROS/arena-isaac-5.git
+
     echo updating Arena...
     git pull --ff-only --autostash && git submodule update --recursive
     git submodule update --init --recursive arena_robots
