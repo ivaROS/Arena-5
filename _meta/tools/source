@@ -33,6 +33,7 @@ export INSTALLED="$ARENA_DIR/.installed"
 export TOOLS_DIR="$ARENA_DIR/_meta/tools"
 export ARENA_ASSETS_DIR="$ARENA_DIR/_assets/"
 export ARENA_ASSETS_DIR_LOCAL="$ARENA_ASSETS_DIR/_local"
+export ARENA_VENV_DIR="${ARENA_VENV_DIR:-$ARENA_DIR/.venv}"
 
 export ARENA_ROS_DISTRO=humble
 
@@ -65,7 +66,10 @@ export ARENA_MODELS_FORMATS="yaml"
 if [ -f "$INSTALLED" ]; then
     while read -r feature; do 
         if  feature_path="$(resolve_arena_feature "$feature")"; then
-            source "$feature_path" source 2>/dev/null || true
+            # Only source if it's a new-style feature that handles 'source' verb
+            if [[ "$feature_path" == *"/_meta/features/"* ]]; then
+                source "$feature_path" source 2>/dev/null || true
+            fi
         fi
     done < "$INSTALLED"
 fi
@@ -102,15 +106,14 @@ if [ -z ${ARENA_SOURCED+x} ] ; then
     
     # python env
     pushd "$ARENA_DIR" > /dev/null || return 1
-        if [ ! -d "$ARENA_DIR/.venv" ] ; then
-            uv sync
+        if [ ! -f "$ARENA_VENV_DIR/.installed" ]; then
+            uv venv "$ARENA_VENV_DIR" --allow-existing && \
+            UV_PROJECT_ENVIRONMENT="$ARENA_VENV_DIR" uv sync --inexact --project . && \
+            touch "$ARENA_VENV_DIR/.installed"
         fi
-        export VIRTUAL_ENV_DISABLE_PROMPT=1
-        venv_path="$(dirname "$(dirname "$(uv python find)")")"
 
-        # if [ "$venv_path" != "$VIRTUAL_ENV" ] ; then
-        . "$venv_path/bin/activate"
-        dirs=("$venv_path"/lib/*/site-packages)
+        . "$ARENA_VENV_DIR/bin/activate"
+        dirs=("$ARENA_VENV_DIR"/lib/*/site-packages)
         _IFS=$IFS IFS=':'
         export PYTHONPATH="${dirs[*]}:$PYTHONPATH"
         IFS=$_IFS
@@ -135,7 +138,6 @@ if [ -z ${ARENA_SOURCED+x} ] ; then
         fi
 
         pushd "$ARENA_WS_DIR" > /dev/null || return $?
-        trap 'popd > /dev/null' EXIT
         
         case "$verb" in
             build)
@@ -182,7 +184,6 @@ if [ -z ${ARENA_SOURCED+x} ] ; then
             ;;
         esac
 
-        trap - EXIT
         popd > /dev/null || return $?
         return $result
     }
