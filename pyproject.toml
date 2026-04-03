@@ -43,6 +43,7 @@ dependencies = [
     "chromadb>=1.3.5",
     "colourings>=0.4.1",
     "aiofiles>=25.1.0",
+    "pandas",
     "torch>=1.13.1",
     "torchvision>=0.14.1",
     "diffusers<0.22",
