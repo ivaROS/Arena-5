@@ -5,8 +5,10 @@ A modular ROS 2 (Humble) platform for researching and benchmarking autonomous ro
 ---
 
 ## Installation
-
+## make sure 'which ros2' command doesn't output anything. If it does, unlink/unsource your ros2 or uninstall. 
 ```sh
+sudo apt update
+sudo apt install software-properties-common
 curl https://raw.githubusercontent.com/ivaROS/Arena-5/custom-humble/install.sh > install.sh
 bash install.sh
 
