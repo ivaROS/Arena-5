@@ -121,7 +121,7 @@ class AsyncNode(TimeNode, rclpy.node.Node):
             return result
         return sync_fn
 
-    async def await_ros(self, ros_future: asyncio.Future[T]) -> T:
+    async def await_ros(self, ros_future: typing.Any) -> T:
         """
         Wraps a ROS Future into an Asyncio Future so it can be awaited.
         """
@@ -209,7 +209,7 @@ class ClientWrapper(typing.Generic[ServiceT]):
         if timeout_sec is None:
             timeout_sec = self._timeout
         res = await AsyncUtil.timeout(
-            self._client.call_async(request),
+            self._node.await_ros(self._client.call_async(request)),
             timeout_sec=timeout_sec
         )
         if res is None:
