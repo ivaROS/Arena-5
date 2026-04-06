@@ -5,7 +5,8 @@ A modular ROS 2 (Humble) platform for researching and benchmarking autonomous ro
 ---
 
 ## Installation
-## make sure 'which ros2' command doesn't output anything. If it does, unlink/unsource your ros2 or uninstall. 
+## make sure 'which ros2' command doesn't output anything. If it does, unlink/unsource your ros2 or uninstall.
+## if a package fails to build during installation, use the command "rm -rf build/<failed_package> install/<failed_package>" and then rerun the bash install.sh command. if that's not working, you can source arena and then rebuild there after removing the respective build and install package folders. 
 ```sh
 sudo apt update
 sudo apt install software-properties-common
