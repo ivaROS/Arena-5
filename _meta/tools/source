@@ -178,8 +178,12 @@ if [ -z ${ARENA_SOURCED+x} ] ; then
                     result=1
                 fi
             ;;
+            metrics)
+                python3 "$ARENA_DIR/arena_evaluation/arena_evaluation/arena_evaluation/get_metrics.py" "$@"
+                result=$?
+            ;;
             *)
-                echo 'Usage: arena <build|update|launch|deactivate|feature> [args...]'
+                echo 'Usage: arena <build|update|launch|deactivate|feature|metrics> [args...]'
                 result=1
             ;;
         esac

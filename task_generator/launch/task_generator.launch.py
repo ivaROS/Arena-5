@@ -151,7 +151,7 @@ def generate_launch_description():
                 **prefix.str_param,
                 **debug.param(bool),
             },
-            {'use_sim_time': False},
+            {'use_sim_time': True},
             parameter_file.substitution,
         ],
     )

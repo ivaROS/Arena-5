@@ -1,5 +1,5 @@
 contest:
-  config: graceful_dwb.yaml
+  config: graceful_rotationShim.yaml
 general:
   simulator: isaac
 suite:

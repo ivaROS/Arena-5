@@ -41,7 +41,7 @@ def generate_launch_description():
     )
     local_planner = LaunchArgument(
         name='local_planner',
-        default_value='dwb',
+        default_value='rotation_shim',
         description='local planner type [teb, dwa, mpc, rlca, arena, rosnav, cohan]'
     )
     global_planner = LaunchArgument(

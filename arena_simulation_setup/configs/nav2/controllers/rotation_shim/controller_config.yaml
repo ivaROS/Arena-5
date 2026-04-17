@@ -4,10 +4,19 @@ controller_plugins_dict:
   FollowPath:
       plugin: "nav2_rotation_shim_controller::RotationShimController"
       primary_controller: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-      angular_dist_threshold: 0.785
+      angular_dist_threshold: 0.175
       forward_sampling_distance: 0.5
-      angular_disengage_threshold: 0.3925
+      angular_disengage_threshold: 0.035
       rotate_to_heading_angular_vel: 1.8
       max_angular_accel: 3.2
       simulate_ahead_time: 1.0
-      rotate_to_goal_heading: false
+      rotate_to_goal_heading: true
+      # Primary Controller (RPP) Parameters
+      desired_linear_vel: 0.5
+      lookahead_dist: 0.6
+      min_lookahead_dist: 0.3
+      max_lookahead_dist: 0.9
+      use_rotate_to_heading: true
+      rotate_to_heading_min_angle: 0.175
+      allow_reversing: true
+      use_regulated_linear_velocity_scaling: true

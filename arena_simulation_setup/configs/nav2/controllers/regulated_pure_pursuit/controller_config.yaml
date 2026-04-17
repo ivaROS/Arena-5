@@ -19,7 +19,7 @@ controller_plugins_dict:
     regulated_linear_scaling_min_radius: 0.9
     regulated_linear_scaling_min_speed: 0.25
     use_rotate_to_heading: true
-    allow_reversing: false
-    rotate_to_heading_min_angle: 0.785
+    allow_reversing: true
+    rotate_to_heading_min_angle: 0.175
     max_angular_vel: 1.8
     max_robot_pose_search_dist: 10.0

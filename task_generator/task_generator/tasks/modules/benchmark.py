@@ -354,6 +354,8 @@ class Mod_Benchmark(TM_Module):
         self._suite_index = -1
         self._headless = 1
 
+        self._base_record_dir = self.node.conf.Robot.RECORD_DATA_DIR.value
+
         os.makedirs(self.LOG_DIR, exist_ok=True)
         with open(self.LOG_DIR / f"{self._runid}.log", "w") as f:
             f.write(f"run {self._runid}\n")
@@ -454,9 +456,8 @@ class Mod_Benchmark(TM_Module):
         logger.info(f"Config: local={contestant_config.local_planner}, inter={contestant_config.inter_planner}, agent={contestant_config.agent_name}")
         
         # Dynamically update the record directory for each contestant
-        if self.node.conf.Robot.RECORD_DATA_DIR.value:
-            base_dir = self.node.conf.Robot.RECORD_DATA_DIR.value
-            new_dir = os.path.join(base_dir, contestant_config.name)
+        if self._base_record_dir:
+            new_dir = f"{self._base_record_dir}_{contestant_config.name}"
             
             # 1. Update own parameter
             self.node.set_parameters([
@@ -468,19 +469,21 @@ class Mod_Benchmark(TM_Module):
                 srv_name = f"{robot.namespace}/data_recorder/change_directory"
 
                 # Update recorder parameters so params.yaml is correct
-                recorder_node_name = f"{robot.namespace}/data_recorder"
+                param_srv_name = f"{robot.namespace}/data_recorder/set_parameters"
                 try:
-                    self.node.set_parameters_atomically(
-                        recorder_node_name,
-                        [
-                            Parameter("local_planner", Parameter.Type.STRING, contestant_config.local_planner),
-                            Parameter("inter_planner", Parameter.Type.STRING, contestant_config.inter_planner),
-                            Parameter("agent_name", Parameter.Type.STRING, contestant_config.agent_name),
-                            Parameter("map_file", Parameter.Type.STRING, suite_config.map),
+                    param_cli = self.node.create_client(SetParameters, param_srv_name)
+                    if param_cli.wait_for_service(timeout_sec=2.0):
+                        param_req = SetParameters.Request()
+                        param_req.parameters = [
+                            Parameter("local_planner", Parameter.Type.STRING, contestant_config.local_planner).to_parameter_msg(),
+                            Parameter("inter_planner", Parameter.Type.STRING, contestant_config.inter_planner).to_parameter_msg(),
+                            Parameter("agent_name", Parameter.Type.STRING, contestant_config.agent_name).to_parameter_msg(),
+                            Parameter("map_file", Parameter.Type.STRING, suite_config.map).to_parameter_msg(),
                         ]
-                    )
+                        param_cli.call_async(param_req)
+                        logger.info(f"[Benchmark] Sent parameter updates to {param_srv_name}")
                 except Exception as e:
-                    logger.warning(f"[Benchmark] Failed to update parameters for {recorder_node_name}: {e}")
+                    logger.warning(f"[Benchmark] Failed to update parameters for {param_srv_name}: {e}")
                 
                 cli = self.node.create_client(arena_evaluation_srvs.ChangeDirectory, srv_name)
                 if cli.wait_for_service(timeout_sec=5.0):
