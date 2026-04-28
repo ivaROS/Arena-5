@@ -25,7 +25,7 @@
       environment:
         file: office.yaml
     robot:
-      timeout: 120.0
+      timeout: 40.0
     hunavsim:       
       parameters:
         max_vel: 0.3

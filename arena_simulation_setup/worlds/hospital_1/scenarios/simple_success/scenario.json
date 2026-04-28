@@ -1,8 +1,8 @@
 {
     "robots": [
         {
-            "start": [4.0, 16.0, 0.0],
-            "goal": [13.0, 25.0, 0.0]
+            "start": [10.0, 2.0, 0.0],
+            "goal": [10.0, 32.0, 0.0]
         }
     ],
     "static": [],
@@ -27,6 +27,50 @@
             "waypoints": [
                 [11.5, 15.0, 0.0],
                 [8.5, 15.0, 0.0]
+            ]
+        },
+        {
+            "name": "Pedestrian2",
+            "id": 11,
+            "pos": [11.5, 20.0, 0.0],
+            "model": "actor2",
+            "behavior_tree": "BTRegularNav.xml",
+            "goal_radius": 0.3,
+            "cyclic_goals": true,
+            "max_vel": 1.2,
+            "desired_velocity": 1.2,
+            "behavior": {
+                "type": 1,
+                "vel": 1.2,
+                "goal_force_factor": 2.0,
+                "social_force_factor": 1.0,
+                "obstacle_force_factor": 1.0
+            },
+            "waypoints": [
+                [8.5, 20.0, 0.0],
+                [11.5, 20.0, 0.0]
+            ]
+        },
+        {
+            "name": "Pedestrian3",
+            "id": 12,
+            "pos": [8.5, 25.0, 0.0],
+            "model": "actor3",
+            "behavior_tree": "BTRegularNav.xml",
+            "goal_radius": 0.3,
+            "cyclic_goals": true,
+            "max_vel": 1.2,
+            "desired_velocity": 1.2,
+            "behavior": {
+                "type": 1,
+                "vel": 1.2,
+                "goal_force_factor": 2.0,
+                "social_force_factor": 1.0,
+                "obstacle_force_factor": 1.0
+            },
+            "waypoints": [
+                [11.5, 25.0, 0.0],
+                [8.5, 25.0, 0.0]
             ]
         }
     ],
