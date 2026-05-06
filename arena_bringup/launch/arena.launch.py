@@ -51,7 +51,7 @@ def generate_launch_description():
     )
     sim = LaunchArgument(
         name='sim',
-        default_value='dummy',  # todo select first installed simulator
+        default_value='Isaac',  # todo select first installed simulator
     )
     headless = LaunchArgument(
         name='headless',
