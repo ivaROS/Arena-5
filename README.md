@@ -12,7 +12,7 @@ sudo apt update
 sudo apt install software-properties-common
 curl https://raw.githubusercontent.com/ivaROS/Arena-5/custom-humble/install.sh > install.sh
 bash install.sh
-
+pip install scikit-learn seaborn pandas matplotlib
 cd ~/arena5_ws # replace with your actual workspace path
 source arena
 arena update
@@ -21,6 +21,21 @@ arena feature gazebo install # optional
 arena feature isaac install # optional
 arena feature training install # optional
 ```
+##if a submodule like training or arena_evaluation is missing, do the following
+```
+# 1. Move into the actual git repository
+cd ~/arena5_ws/src/Arena
+
+# 2. Initialize and update the submodule
+git submodule update --init --recursive arena_evaluation
+
+# 3. Go back to the workspace root to build
+cd ~/arena5_ws
+
+# 4. Build the package
+colcon build --symlink-install --packages-select arena_evaluation
+```
+
 
 ## Usage
 
